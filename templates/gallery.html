@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片库 - 图片裁剪工具</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='gallery.css') }}">
+</head>
+<body>
+    <div class="gallery-page">
+        <!-- 头部导航 -->
+        <header class="gallery-header">
+            <div class="header-left">
+                <a href="/" class="back-btn" title="返回裁剪工具">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    返回裁剪工具
+                </a>
+            </div>
+            <div class="header-center">
+                <h1>图片库</h1>
+            </div>
+            <div class="header-right">
+                <span id="galleryCount">加载中...</span>
+            </div>
+        </header>
+
+        <!-- 工具栏 -->
+        <div class="gallery-toolbar">
+            <div class="toolbar-left">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="🔍 搜索图片名称..." oninput="filterImages()">
+                </div>
+                <div class="sort-box">
+                    <select id="sortSelect" onchange="sortImages()">
+                        <option value="newest">最新上传</option>
+                        <option value="oldest">最早上传</option>
+                        <option value="name">名称排序</option>
+                        <option value="size">大小排序</option>
+                    </select>
+                </div>
+            </div>
+            <div class="toolbar-right">
+                <button class="btn-refresh" onclick="refreshGallery()">
+                    🔄 刷新
+                </button>
+                <button class="btn-delete-all" onclick="deleteAllImages()">
+                    🗑️ 清空图片库
+                </button>
+            </div>
+        </div>
+
+        <!-- 图片网格 -->
+        <main class="gallery-grid" id="galleryGrid">
+            <div class="loading-state">
+                <div class="spinner"></div>
+                <p>加载图片中...</p>
+            </div>
+        </main>
+
+        <!-- 空状态 -->
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <div class="empty-icon">📭</div>
+            <h2>图片库为空</h2>
+            <p>上传并裁剪图片后，这里会显示所有图片</p>
+            <a href="/" class="btn-primary">去裁剪图片</a>
+        </div>
+
+        <!-- 底部信息 -->
+        <footer class="gallery-footer">
+            <p>图片裁剪工具 © 2024</p>
+        </footer>
+    </div>
+
+    <!-- 图片预览模态框 -->
+    <div class="preview-modal" id="previewModal">
+        <div class="preview-overlay" onclick="closePreview()"></div>
+        <div class="preview-content">
+            <!-- 关闭按钮 -->
+            <button class="preview-close" onclick="closePreview()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+
+            <!-- 图片容器 -->
+            <div class="preview-image-container" id="previewImageContainer">
+                <img id="previewImage" src="" alt="预览图片">
+            </div>
+
+            <!-- 信息栏 -->
+            <div class="preview-info">
+                <div class="preview-info-left">
+                    <span id="previewImageName">图片名称</span>
+                    <span class="separator">|</span>
+                    <span id="previewImageSize">尺寸</span>
+                    <span class="separator">|</span>
+                    <span id="previewZoomLevel">🔍 100%</span>
+                </div>
+                <div class="preview-info-right">
+                    <button onclick="downloadPreviewImage()" title="下载">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C3.93913 21 3.17172 20.5786 2.58579 19.4142C2.21071 19.0391 2 18.5304 2 18V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 导航按钮 -->
+            <button class="preview-nav preview-prev" onclick="navigatePreview(-1)" title="上一张">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <button class="preview-nav preview-next" onclick="navigatePreview(1)" title="下一张">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 全局状态
+        let allImages = [];
+        let previewImages = [];
+        let currentPreviewIndex = 0;
+        let imageZoomLevel = 1;
+        let imageTranslateX = 0;
+        let imageTranslateY = 0;
+        let isPanning = false;
+        let panStart = { x: 0, y: 0 };
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadGallery();
+            initPreviewEvents();
+            initKeyboardNavigation();
+        });
+
+        // 加载图片库
+        async function loadGallery() {
+            try {
+                const response = await fetch('/get_all_images');
+                const result = await response.json();
+
+                if (result.success) {
+                    allImages = result.images;
+                    document.getElementById('galleryCount').textContent = `共 ${result.total} 张图片`;
+                    renderGallery(allImages);
+
+                    if (allImages.length === 0) {
+                        document.getElementById('emptyState').style.display = 'flex';
+                    } else {
+                        document.getElementById('emptyState').style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                document.getElementById('galleryGrid').innerHTML =
+                    '<div class="loading-state"><p>加载失败: ' + error.message + '</p></div>';
+            }
+        }
+
+        // 渲染图片网格
+        function renderGallery(images) {
+            const grid = document.getElementById('galleryGrid');
+
+            if (images.length === 0) {
+                grid.innerHTML = '';
+                document.getElementById('emptyState').style.display = 'flex';
+                return;
+            }
+
+            document.getElementById('emptyState').style.display = 'none';
+
+            grid.innerHTML = '';
+
+            images.forEach((image, index) => {
+                const card = document.createElement('div');
+                card.className = 'image-card';
+
+                const sizeStr = formatFileSize(image.size);
+
+                card.innerHTML = `
+                    <div class="card-image" onclick="openPreview(${index})">
+                        <img src="${image.url}?_=${Date.now()}"
+                             alt="${image.filename}"
+                             loading="lazy"
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><rect fill=%22%23f0f0f0%22 width=%22200%22 height=%22200%22/><text x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-size=%2214%22>加载失败</text></svg>'">
+                    </div>
+                    <div class="card-info">
+                        <p class="card-name" title="${image.filename}">${image.filename}</p>
+                        <p class="card-meta">${sizeStr} · ${image.modified}</p>
+                    </div>
+                    <div class="card-actions">
+                        <button onclick="openPreview(${index})" title="查看大图">🔍</button>
+                        <a href="${image.url}" download="${image.filename}" title="下载">💾</a>
+                        <button onclick="deleteImage('${image.filename}', this)" title="删除">🗑️</button>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+
+            // 更新预览列表
+            previewImages = images.map(img => ({
+                name: img.filename,
+                url: img.url
+            }));
+        }
+
+        // 搜索
+        function filterImages() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            if (!term) {
+                renderGallery(allImages);
+                return;
+            }
+            const filtered = allImages.filter(img =>
+                img.filename.toLowerCase().includes(term)
+            );
+            renderGallery(filtered);
+        }
+
+        // 排序
+        function sortImages() {
+            const sortBy = document.getElementById('sortSelect').value;
+            let sorted = [...allImages];
+
+            switch(sortBy) {
+                case 'newest':
+                    sorted.sort((a, b) => new Date(b.modified) - new Date(a.modified));
+                    break;
+                case 'oldest':
+                    sorted.sort((a, b) => new Date(a.modified) - new Date(b.modified));
+                    break;
+                case 'name':
+                    sorted.sort((a, b) => a.filename.localeCompare(b.filename));
+                    break;
+                case 'size':
+                    sorted.sort((a, b) => b.size - a.size);
+                    break;
+            }
+
+            renderGallery(sorted);
+        }
+
+        // 删除单张图片
+        async function deleteImage(filename, btn) {
+            if (!confirm(`确定要删除 "${filename}" 吗？`)) return;
+
+            try {
+                const response = await fetch(`/delete_image/${filename}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    allImages = allImages.filter(img => img.filename !== filename);
+                    document.getElementById('galleryCount').textContent = `共 ${allImages.length} 张图片`;
+
+                    if (document.getElementById('searchInput').value) {
+                        filterImages();
+                    } else {
+                        renderGallery(allImages);
+                    }
+                }
+            } catch (error) {
+                alert('删除失败: ' + error.message);
+            }
+        }
+
+        // 清空所有图片
+        async function deleteAllImages() {
+            if (allImages.length === 0) return;
+            if (!confirm(`确定要删除所有 ${allImages.length} 张图片吗？此操作不可恢复！`)) return;
+
+            try {
+                for (const img of allImages) {
+                    await fetch(`/delete_image/${img.filename}`, { method: 'DELETE' });
+                }
+                allImages = [];
+                document.getElementById('galleryCount').textContent = '共 0 张图片';
+                renderGallery([]);
+            } catch (error) {
+                alert('清空失败: ' + error.message);
+            }
+        }
+
+        // 刷新
+        async function refreshGallery() {
+            await loadGallery();
+            document.getElementById('searchInput').value = '';
+            document.getElementById('sortSelect').value = 'newest';
+            document.getElementById('galleryCount').textContent = `共 ${allImages.length} 张图片`;
+        }
+
+        // ============ 预览功能 ============
+        function openPreview(index) {
+            currentPreviewIndex = index;
+            updatePreviewImage();
+
+            const modal = document.getElementById('previewModal');
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+
+            setTimeout(() => modal.classList.add('active'), 10);
+        }
+
+        function closePreview() {
+            const modal = document.getElementById('previewModal');
+            modal.classList.remove('active');
+            resetImageTransform();
+
+            setTimeout(() => {
+                modal.style.display = 'none';
+                document.body.style.overflow = '';
+            }, 300);
+        }
+
+        function updatePreviewImage() {
+            const image = previewImages[currentPreviewIndex];
+            const previewImage = document.getElementById('previewImage');
+
+            resetImageTransform();
+            previewImage.style.opacity = '0';
+
+            setTimeout(() => {
+                previewImage.src = image.url + '?_=' + Date.now();
+                document.getElementById('previewImageName').textContent = image.name;
+
+                previewImage.onload = () => {
+                    previewImage.style.opacity = '1';
+                    document.getElementById('previewImageSize').textContent =
+                        `${previewImage.naturalWidth} × ${previewImage.naturalHeight} px`;
+                };
+            }, 150);
+        }
+
+        function navigatePreview(direction) {
+            let newIndex = currentPreviewIndex + direction;
+            if (newIndex < 0) newIndex = previewImages.length - 1;
+            else if (newIndex >= previewImages.length) newIndex = 0;
+
+            if (newIndex !== currentPreviewIndex) {
+                currentPreviewIndex = newIndex;
+                updatePreviewImage();
+            }
+        }
+
+        // 缩放功能
+        function handlePreviewWheel(e) {
+            e.preventDefault();
+            const previewImage = document.getElementById('previewImage');
+            if (!previewImage.src) return;
+
+            const rect = previewImage.parentElement.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            const newZoom = Math.max(0.5, Math.min(imageZoomLevel + delta, 5));
+
+            if (newZoom !== imageZoomLevel) {
+                const scale = newZoom / imageZoomLevel;
+                imageTranslateX = mouseX - scale * (mouseX - imageTranslateX);
+                imageTranslateY = mouseY - scale * (mouseY - imageTranslateY);
+                imageZoomLevel = newZoom;
+                updateImageTransform();
+            }
+        }
+
+        function handlePreviewPanStart(e) {
+            e.preventDefault();
+            isPanning = true;
+            panStart = { x: e.clientX - imageTranslateX, y: e.clientY - imageTranslateY };
+            document.getElementById('previewImageContainer').style.cursor = 'grabbing';
+        }
+
+        function handlePreviewPanMove(e) {
+            if (!isPanning) return;
+            imageTranslateX = e.clientX - panStart.x;
+            imageTranslateY = e.clientY - panStart.y;
+            updateImageTransform();
+        }
+
+        function handlePreviewPanEnd() {
+            isPanning = false;
+            document.getElementById('previewImageContainer').style.cursor = 'grab';
+        }
+
+        function updateImageTransform() {
+            const previewImage = document.getElementById('previewImage');
+            if (!previewImage) return;
+            previewImage.style.transform = `translate(${imageTranslateX}px, ${imageTranslateY}px) scale(${imageZoomLevel})`;
+            previewImage.style.transition = isPanning ? 'none' : 'transform 0.3s ease';
+            document.getElementById('previewZoomLevel').textContent =
+                `🔍 ${Math.round(imageZoomLevel * 100)}%`;
+        }
+
+        function resetImageTransform() {
+            imageZoomLevel = 1;
+            imageTranslateX = 0;
+            imageTranslateY = 0;
+            updateImageTransform();
+            document.getElementById('previewImageContainer').style.cursor = 'grab';
+        }
+
+        function downloadPreviewImage() {
+            if (previewImages[currentPreviewIndex]) {
+                const link = document.createElement('a');
+                link.href = previewImages[currentPreviewIndex].url;
+                link.download = previewImages[currentPreviewIndex].name;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        function initPreviewEvents() {
+            const container = document.getElementById('previewImageContainer');
+            const previewImage = document.getElementById('previewImage');
+
+            container.addEventListener('wheel', handlePreviewWheel, { passive: false });
+            container.addEventListener('mousedown', handlePreviewPanStart);
+            container.addEventListener('mousemove', handlePreviewPanMove);
+            container.addEventListener('mouseup', handlePreviewPanEnd);
+            container.addEventListener('mouseleave', handlePreviewPanEnd);
+            container.addEventListener('dblclick', resetImageTransform);
+            container.style.cursor = 'grab';
+
+            // 防止图片拖拽
+            previewImage.addEventListener('dragstart', (e) => e.preventDefault());
+        }
+
+        function initKeyboardNavigation() {
+            document.addEventListener('keydown', (e) => {
+                const modal = document.getElementById('previewModal');
+                if (modal.style.display !== 'flex') return;
+
+                switch(e.key) {
+                    case 'Escape': closePreview(); break;
+                    case 'ArrowLeft': navigatePreview(-1); break;
+                    case 'ArrowRight': navigatePreview(1); break;
+                    case '+': case '=':
+                        e.preventDefault();
+                        imageZoomLevel = Math.min(imageZoomLevel + 0.2, 5);
+                        updateImageTransform();
+                        break;
+                    case '-':
+                        e.preventDefault();
+                        imageZoomLevel = Math.max(imageZoomLevel - 0.2, 0.5);
+                        updateImageTransform();
+                        break;
+                    case '0':
+                        e.preventDefault();
+                        resetImageTransform();
+                        break;
+                }
+            });
+        }
+
+        // 工具函数
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>
