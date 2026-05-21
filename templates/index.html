@@ -1,0 +1,1900 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片裁剪工具 - 可视化裁剪</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>图片裁剪工具</h1>
+            <p>上传图片，自由拖动裁剪框进行裁剪</p>
+        </header>
+
+        <main>
+<!-- 上传区域 -->
+<section class="upload-section" id="uploadSection">
+    <div class="upload-area" id="uploadArea">
+        <div class="upload-content">
+            <div class="upload-icon">📁</div>
+            <p>点击或拖拽图片到此处上传</p>
+            <p class="upload-hint">支持 JPG、PNG、WEBP 等格式</p>
+        </div>
+        <input type="file" id="imageInput" accept="image/*" hidden>
+    </div>
+    <!-- ★ 新增：浏览图片库按钮 -->
+    <div class="upload-actions">
+    <button class="btn-browse" onclick="window.location.href='/gallery'">
+         🖼️ 浏览图片库 <span id="imageCount"></span>
+    </button>
+</div>
+</section>
+
+            <!-- 裁剪工 作区 -->
+            <section class="workspace-section" id="workspaceSection" style="display: none;">
+                <div class="workspace-layout">
+                    <!-- 左侧工具栏 -->
+                    <div class="toolbar">
+                        <h3>裁剪设置</h3>
+
+                        <!-- 网格设置 -->
+                        <div class="tool-group">
+                            <h4>网格模式</h4>
+                            <div class="grid-controls">
+                                <div class="input-group">
+                                    <label>行数:</label>
+                                    <input type="number" id="rowsInput" value="3" min="1" max="10">
+                                </div>
+                                <div class="input-group">
+                                    <label>列数:</label>
+                                    <input type="number" id="colsInput" value="3" min="1" max="10">
+                                </div>
+                                <button class="btn-apply" onclick="applyGrid()">应用网格</button>
+                            </div>
+                        </div>
+
+                        <!-- 裁剪信息 -->
+                        <div class="tool-group">
+                            <h4>裁剪信息</h4>
+                            <div id="cropInfo">
+                                <p>图片尺寸: <span id="imageSize">-</span></p>
+                                <p>裁剪格数: <span id="gridSize">-</span></p>
+                                <p>每格尺寸: <span id="cellSize">-</span></p>
+                            </div>
+                        </div>
+                        <!-- 在工具栏的"裁剪信息"div之后添加 -->
+<div class="tool-group">
+    <h4>操作提示</h4>
+    <div class="tool-tips">
+        <p>🖱️ 拖动裁剪框中间移动</p>
+        <p>📐 拖动边角调整大小</p>
+        <p>⌨️ 方向键微调位置</p>
+        <p>🔍 滚轮缩放画布</p>
+    </div>
+</div>
+
+                        <!-- 操作按钮 -->
+                        <div class="tool-group">
+                            <button class="btn-primary" onclick="executeCrop()">
+                                ✂️ 开始裁剪
+                            </button>
+                            <button class="btn-secondary" onclick="downloadResults()" id="downloadBtn" disabled>
+                                📥 打包下载
+                            </button>
+                            <button class="btn-secondary" onclick="resetAll()">
+                                🔄 重新上传
+                            </button>
+                        </div>
+
+                        <!-- 快捷网格预设 -->
+                        <div class="tool-group">
+                            <h4>快捷预设</h4>
+                            <!-- 形状裁剪 -->
+<div class="tool-group">
+    <h4>形状裁剪</h4>
+    <div class="shape-controls">
+        <div class="shape-selector">
+            <button class="shape-btn" data-shape="rectangle" onclick="selectShape('rectangle')" title="矩形">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                    <rect x="3" y="3" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"/>
+                </svg>
+            </button>
+            <button class="shape-btn" data-shape="heart" onclick="selectShape('heart')" title="爱心">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="currentColor"/>
+                </svg>
+            </button>
+            <button class="shape-btn" data-shape="circle" onclick="selectShape('circle')" title="圆形">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none"/>
+                </svg>
+            </button>
+            <button class="shape-btn" data-shape="triangle" onclick="selectShape('triangle')" title="三角形">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path d="M12 3L22 21H2L12 3z" stroke="currentColor" stroke-width="2" fill="none"/>
+                </svg>
+            </button>
+            <button class="shape-btn" data-shape="diamond" onclick="selectShape('diamond')" title="菱形">
+                <svg viewBox="0 0 24 24" width="20" height="20">
+                    <path d="M12 2L22 12L12 22L2 12L12 2z" stroke="currentColor" stroke-width="2" fill="none"/>
+                </svg>
+            </button>
+            <button class="shape-btn" data-shape="star" onclick="selectShape('star')" title="星形">
+                <div class="shape-label">⭐</div>
+            </button>
+        </div>
+
+        <!-- 多角形控制 -->
+        <div class="polygon-controls" id="polygonControls" style="display: none;">
+            <div class="input-group">
+                <label id="polygonLabel">角数:</label>
+                <input type="number" id="starPoints" value="5" min="3" max="20" onchange="updateStarPoints()">
+            </div>
+            <div class="polygon-type-toggle">
+                <label>
+                    <input type="radio" name="polygonType" value="star" checked onchange="updatePolygonType()"> 星形
+                </label>
+                <label>
+                    <input type="radio" name="polygonType" value="polygon" onchange="updatePolygonType()"> 多边形
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+                            <div class="preset-buttons">
+                                <button onclick="setGridPreset(2, 2)">2×2</button>
+                                <button onclick="setGridPreset(3, 3)">3×3</button>
+                                <button onclick="setGridPreset(3, 2)">3×2</button>
+                                <button onclick="setGridPreset(4, 4)">4×4</button>
+                                <button onclick="setGridPreset(5, 5)">5×5</button>
+                                <button onclick="setGridPreset(1, 1)">自由模式</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧画布区域 -->
+                    <div class="canvas-container">
+                        <div class="canvas-wrapper" id="canvasWrapper">
+                            <canvas id="mainCanvas"></canvas>
+                        </div>
+                        <div class="canvas-controls">
+                            <button onclick="zoomIn()">🔍+</button>
+                            <button onclick="zoomOut()">🔍-</button>
+                            <button onclick="resetZoom()">↺ 重置</button>
+                            <span>缩放: <span id="zoomLevel">100%</span></span>
+                        </div>
+                    </div>
+
+                    <!-- 网格列表 -->
+                    <div class="crop-list" id="cropList">
+                        <h4>裁剪区域</h4>
+                        <div id="cropItems"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 结果区域 -->
+            <section class="result-section" id="resultSection" style="display: none;">
+                <h2>裁剪结果</h2>
+                <div class="result-images" id="resultImages"></div>
+                <div class="action-buttons">
+                    <button class="btn-primary" onclick="downloadResults()">📥 打包下载</button>
+                    <button class="btn-secondary" onclick="backToWorkspace()">↩ 返回编辑</button>
+                    <button class="btn-secondary" onclick="resetAll()">🔄 裁剪新图片</button>
+                </div>
+            </section>
+            <!-- 图片库模态框 -->
+<div class="gallery-modal" id="galleryModal">
+    <div class="gallery-overlay" onclick="closeGallery()"></div>
+    <div class="gallery-content">
+        <!-- 头部 -->
+        <div class="gallery-header">
+            <h2>🖼️ 图片库</h2>
+            <div class="gallery-header-info">
+                <span id="galleryCount">共 0 张图片</span>
+            </div>
+            <button class="gallery-close" onclick="closeGallery()" title="关闭">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- 工具栏 -->
+        <div class="gallery-toolbar">
+            <div class="gallery-search">
+                <input type="text" id="gallerySearch" placeholder="🔍 搜索图片名称..." oninput="filterGalleryImages()">
+            </div>
+            <div class="gallery-sort">
+                <select id="gallerySort" onchange="sortGalleryImages()">
+                    <option value="newest">最新上传</option>
+                    <option value="oldest">最早上传</option>
+                    <option value="name">名称排序</option>
+                    <option value="size">大小排序</option>
+                </select>
+            </div>
+            <button class="btn-refresh" onclick="refreshGallery()" title="刷新">
+                🔄 刷新
+            </button>
+        </div>
+
+        <!-- 图片网格 -->
+        <div class="gallery-grid" id="galleryGrid">
+            <div class="gallery-loading">
+                <div class="spinner"></div>
+                <p>加载中...</p>
+            </div>
+        </div>
+
+        <!-- 底部操作 -->
+        <div class="gallery-footer">
+            <button class="btn-secondary" onclick="closeGallery()">关闭</button>
+        </div>
+    </div>
+</div>
+
+            <!-- 图片预览模态框 -->
+            <div class="image-modal" id="imageModal">
+                <div class="modal-overlay" onclick="closeImagePreview()"></div>
+                <div class="modal-content">
+                    <!-- 关闭按钮 -->
+                    <button class="modal-close" onclick="closeImagePreview()" title="关闭">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+
+                    <!-- 图片容器 -->
+                    <div class="modal-image-container" id="modalImageContainer">
+                        <img id="modalImage" src="" alt="预览图片" ondragstart="return false;">
+                    </div>
+
+                    <!-- 图片信息栏 -->
+                    <div class="modal-info">
+                        <div class="modal-info-text">
+                            <span id="modalImageName">图片名称</span>
+                            <span class="modal-info-separator">|</span>
+                            <span id="modalImageSize">尺寸</span>
+                            <span class="modal-info-separator">|</span>
+                            <span id="modalImageCounter">1/9</span>
+                        </div>
+                        <div class="modal-info-actions">
+                            <button onclick="downloadCurrentImage()" title="下载当前图片" class="modal-action-btn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C3.93913 21 3.17172 20.5786 2.58579 19.4142C2.21071 19.0391 2 18.5304 2 18V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                            <button onclick="toggleFullscreen()" title="全屏" class="modal-action-btn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M8 3H5C3.89543 3 3 3.89543 3 5V8M21 8V5C21 3.89543 20.1046 3 19 3H16M16 21H19C20.1046 21 21 20.1046 21 19V16M3 16V19C3 20.1046 3.89543 21 5 21H8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 导航按钮 -->
+                    <button class="modal-nav modal-prev" id="modalPrev" onclick="navigateImage(-1)" title="上一张">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <button class="modal-nav modal-next" id="modalNext" onclick="navigateImage(1)" title="下一张">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+
+                    <!-- 缩略图导航栏 -->
+                    <div class="modal-thumbnails" id="modalThumbnails"></div>
+                </div>
+            </div>
+
+            <!-- 加载提示 -->
+            <div class="loading" id="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>处理中...</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // ============ 全局状态 ============
+let currentFile = null;
+let imageObject = null;
+let canvas = null;
+let ctx = null;
+let zoom = 1;
+let crops = []; // 裁剪区域数组 [{x, y, width, height}]
+let isDragging = false;
+let dragTarget = null; // {cropIndex, handleType, mode, startCrop, startMouse}
+let gridRows = 3;
+let gridCols = 3;
+let imageNaturalSize = { width: 0, height: 0 };
+let cropResults = [];
+let previewImages = [];
+let currentPreviewIndex = 0;
+let isFullscreen = false;
+let imageZoomLevel = 1;
+let imageTranslateX = 0;
+let imageTranslateY = 0;
+let isPanning = false;
+let panStart = { x: 0, y: 0 };
+let renderTimeout = null;
+
+// 手柄检测半径（像素）
+const HANDLE_RADIUS = 10;
+// 最小裁剪尺寸（图片坐标系）
+const MIN_CROP_SIZE = 30;
+
+// ============ 初始化 ============
+document.addEventListener('DOMContentLoaded', () => {
+    canvas = document.getElementById('mainCanvas');
+    ctx = canvas.getContext('2d', {
+        willReadFrequently: false,
+        alpha: false
+    });
+    initUploadArea();
+    initCanvasEvents();
+    initModalEvents();
+    initKeyboardNavigation();
+});
+
+// ============ 上传处理 ============
+function initUploadArea() {
+    const uploadArea = document.getElementById('uploadArea');
+    const imageInput = document.getElementById('imageInput');
+
+    uploadArea.addEventListener('click', () => imageInput.click());
+
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFileUpload(files[0]);
+        }
+    });
+
+    imageInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileUpload(e.target.files[0]);
+        }
+    });
+}
+
+async function handleFileUpload(file) {
+    showLoading(true);
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+        const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        if (result.success) {
+            currentFile = result.filename;
+            await loadImage(result.filename);
+        } else {
+            alert('上传失败: ' + result.error);
+        }
+    } catch (error) {
+        alert('上传出错: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+async function loadImage(filename) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = async () => {
+            imageObject = img;
+            imageNaturalSize.width = img.naturalWidth;
+            imageNaturalSize.height = img.naturalHeight;
+            document.getElementById('imageSize').textContent =
+                `${img.naturalWidth} × ${img.naturalHeight}`;
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('workspaceSection').style.display = 'block';
+            await applyGrid();
+            resolve();
+        };
+        img.onerror = reject;
+        img.src = `/uploads/${filename}`;
+    });
+}
+
+// ============ 画布渲染 ============
+function renderCanvas() {
+    if (!imageObject) return;
+
+    if (renderTimeout) {
+        cancelAnimationFrame(renderTimeout);
+    }
+
+    renderTimeout = requestAnimationFrame(() => {
+        const wrapper = document.getElementById('canvasWrapper');
+        const maxWidth = wrapper.clientWidth - 20;
+        const maxHeight = window.innerHeight - 300;
+
+        const scaleX = maxWidth / imageNaturalSize.width;
+        const scaleY = maxHeight / imageNaturalSize.height;
+        const fitScale = Math.min(scaleX, scaleY, 1);
+        const displayScale = fitScale * zoom;
+
+        canvas.width = imageNaturalSize.width * displayScale;
+        canvas.height = imageNaturalSize.height * displayScale;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(imageObject, 0, 0, canvas.width, canvas.height);
+
+        if (gridRows > 1 || gridCols > 1) {
+            drawGrid(displayScale);
+        }
+        drawCropAreas(displayScale);
+
+        document.getElementById('zoomLevel').textContent =
+            Math.round(zoom * 100) + '%';
+    });
+}
+
+function drawGrid(scale) {
+    const cellWidth = canvas.width / gridCols;
+    const cellHeight = canvas.height / gridRows;
+
+    ctx.strokeStyle = 'rgba(102, 126, 234, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+
+    for (let i = 1; i < gridCols; i++) {
+        const x = i * cellWidth;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+    }
+
+    for (let i = 1; i < gridRows; i++) {
+        const y = i * cellHeight;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+    }
+
+    ctx.setLineDash([]);
+
+    const cellSizeX = Math.round(imageNaturalSize.width / gridCols);
+    const cellSizeY = Math.round(imageNaturalSize.height / gridRows);
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(5, 5, 130, 25);
+    ctx.fillStyle = 'white';
+    ctx.font = '14px sans-serif';
+    ctx.fillText(`${cellSizeX}×${cellSizeY} px`, 10, 22);
+}
+
+function drawCropAreas(scale) {
+    crops.forEach((crop, index) => {
+        const x = (crop.x / imageNaturalSize.width) * canvas.width;
+        const y = (crop.y / imageNaturalSize.height) * canvas.height;
+        const w = (crop.width / imageNaturalSize.width) * canvas.width;
+        const h = (crop.height / imageNaturalSize.height) * canvas.height;
+
+        // ★ 裁剪区域超出画布时，依然绘制矩形边框
+        ctx.save();
+
+        // 半透明填充
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(x, y, w, h);
+
+        // 矩形选择框
+        ctx.strokeStyle = '#ff4757';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(x, y, w, h);
+        ctx.setLineDash([]);
+
+        // 如果是非矩形形状，叠加绘制形状轮廓
+        if (currentShape !== 'rectangle') {
+            drawShapeOutline(x, y, w, h, currentShape);
+        }
+
+        // 绘制缩放手柄
+        drawResizeHandles(x, y, w, h);
+
+        // 编号标签（如果裁剪框在画布内才显示）
+        if (x + w > 0 && y + h > 0 && x < canvas.width && y < canvas.height) {
+            ctx.fillStyle = 'rgba(255, 71, 87, 0.9)';
+            ctx.fillRect(x + 5, y + 5, 30, 22);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 13px sans-serif';
+            ctx.fillText(index + 1, x + 14, y + 21);
+        }
+
+        ctx.restore();
+    });
+}
+function drawResizeHandles(x, y, w, h) {
+    const handleSize = 10;
+    const handles = [
+        { x: x, y: y },                    // 左上
+        { x: x + w/2, y: y },              // 上中
+        { x: x + w, y: y },                // 右上
+        { x: x, y: y + h/2 },              // 左中
+        { x: x + w, y: y + h/2 },          // 右中
+        { x: x, y: y + h },                // 左下
+        { x: x + w/2, y: y + h },          // 下中
+        { x: x + w, y: y + h },            // 右下
+    ];
+
+    handles.forEach(handle => {
+        // 白色外框
+        ctx.fillStyle = 'white';
+        ctx.fillRect(
+            handle.x - handleSize/2 - 2,
+            handle.y - handleSize/2 - 2,
+            handleSize + 4,
+            handleSize + 4
+        );
+        // 红色手柄
+        ctx.fillStyle = '#ff4757';
+        ctx.fillRect(
+            handle.x - handleSize/2,
+            handle.y - handleSize/2,
+            handleSize,
+            handleSize
+        );
+    });
+}
+function drawShapeOutline(x, y, w, h, shapeType) {
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+
+    ctx.save();
+    ctx.strokeStyle = '#667eea';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([]);
+
+    ctx.beginPath();
+
+    switch (shapeType) {
+        case 'heart':
+            drawHeartPath(ctx, cx, cy, w, h);
+            break;
+        case 'circle':
+            ctx.ellipse(cx, cy, w / 2, h / 2, 0, 0, Math.PI * 2);
+            break;
+        case 'star':
+            drawStarPath(ctx, cx, cy, w, h, starPoints);
+            break;
+        case 'polygon':
+            drawPolygonPath(ctx, cx, cy, w, h, starPoints);
+            break;
+        case 'triangle':
+            drawPolygonPath(ctx, cx, cy, w, h, 3);
+            break;
+        case 'diamond':
+            drawDiamondPath(ctx, cx, cy, w, h);
+            break;
+    }
+
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawHeartPath(ctx, cx, cy, w, h) {
+    // 爱心参数方程: x = 16sin³(t), y = 13cos(t) - 5cos(2t) - 2cos(3t) - cos(4t)
+    // 自然范围: x ∈ [-16, 16] (宽32), y ∈ [-17, 5] (高22)
+    // 缩放填满 w × h，并垂直居中
+    const sx = w / 32;
+    const sy = h / 22;
+    const cyShift = cy + 6 * sy; // 将爱心垂直居中于裁剪框
+
+    ctx.moveTo(cx, cyShift - 5 * sy);
+
+    for (let t = 0; t <= Math.PI * 2; t += 0.05) {
+        const px = 16 * Math.pow(Math.sin(t), 3);
+        const py = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+        ctx.lineTo(cx + px * sx, cyShift - py * sy);
+    }
+
+    ctx.closePath();
+}
+
+function drawStarPath(ctx, cx, cy, w, h, points) {
+    const n = points || 5;
+    // 计算星形外顶点在各个方向上的最大延伸，以填满 w × h
+    let maxCos = 0, maxSin = 0;
+    for (let i = 0; i < n; i++) {
+        const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
+        maxCos = Math.max(maxCos, Math.abs(Math.cos(angle)));
+        maxSin = Math.max(maxSin, Math.abs(Math.sin(angle)));
+    }
+    const rx = maxCos > 0 ? (w / 2) / maxCos : w / 2;
+    const ry = maxSin > 0 ? (h / 2) / maxSin : h / 2;
+    const innerRatio = 0.4;
+
+    for (let i = 0; i < n * 2; i++) {
+        const angle = (i * Math.PI) / n - Math.PI / 2;
+        const ratio = i % 2 === 0 ? 1 : innerRatio;
+        const px = cx + ratio * rx * Math.cos(angle);
+        const py = cy + ratio * ry * Math.sin(angle);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+}
+
+function drawPolygonPath(ctx, cx, cy, w, h, sides) {
+    const n = sides || 3;
+    // 计算多边形顶点在各个方向上的最大延伸，以填满 w × h
+    let maxCos = 0, maxSin = 0;
+    for (let i = 0; i < n; i++) {
+        const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
+        maxCos = Math.max(maxCos, Math.abs(Math.cos(angle)));
+        maxSin = Math.max(maxSin, Math.abs(Math.sin(angle)));
+    }
+    const rx = maxCos > 0 ? (w / 2) / maxCos : w / 2;
+    const ry = maxSin > 0 ? (h / 2) / maxSin : h / 2;
+
+    for (let i = 0; i < n; i++) {
+        const angle = (i * 2 * Math.PI) / n - Math.PI / 2;
+        const px = cx + rx * Math.cos(angle);
+        const py = cy + ry * Math.sin(angle);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+}
+
+function drawDiamondPath(ctx, cx, cy, w, h) {
+    ctx.moveTo(cx, cy - h / 2);    // 上边中点
+    ctx.lineTo(cx + w / 2, cy);     // 右边中点
+    ctx.lineTo(cx, cy + h / 2);     // 下边中点
+    ctx.lineTo(cx - w / 2, cy);     // 左边中点
+    ctx.closePath();
+}
+
+// ============ 关键修复：手柄检测 ============
+/**
+ * 检测鼠标是否在某个裁剪框的手柄上
+ * @param {number} mouseCanvasX - 鼠标在画布上的X坐标
+ * @param {number} mouseCanvasY - 鼠标在画布上的Y坐标
+ * @returns {object|null} 手柄信息 {cropIndex, handleType} 或 null
+ */
+function detectHandle(mouseCanvasX, mouseCanvasY) {
+    // 扩大检测范围，让用户更容易点到手柄
+    const hitRadius = HANDLE_RADIUS + 6;
+
+    // 从上层开始检测（后画的在上面）
+    for (let i = crops.length - 1; i >= 0; i--) {
+        const crop = crops[i];
+
+        // 转换到画布坐标
+        const cx = (crop.x / imageNaturalSize.width) * canvas.width;
+        const cy = (crop.y / imageNaturalSize.height) * canvas.height;
+        const cw = (crop.width / imageNaturalSize.width) * canvas.width;
+        const ch = (crop.height / imageNaturalSize.height) * canvas.height;
+
+        // 8个手柄位置（画布坐标）
+        const handles = [
+            { x: cx, y: cy, type: 'nw' },           // 左上
+            { x: cx + cw/2, y: cy, type: 'n' },      // 上中
+            { x: cx + cw, y: cy, type: 'ne' },       // 右上
+            { x: cx, y: cy + ch/2, type: 'w' },      // 左中
+            { x: cx + cw, y: cy + ch/2, type: 'e' }, // 右中
+            { x: cx, y: cy + ch, type: 'sw' },       // 左下
+            { x: cx + cw/2, y: cy + ch, type: 's' }, // 下中
+            { x: cx + cw, y: cy + ch, type: 'se' },  // 右下
+        ];
+
+        for (const handle of handles) {
+            const dx = mouseCanvasX - handle.x;
+            const dy = mouseCanvasY - handle.y;
+            if (Math.sqrt(dx * dx + dy * dy) <= hitRadius) {
+                return { cropIndex: i, handleType: handle.type };
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * 检测鼠标是否在某个裁剪框内部
+ */
+function detectCropInterior(mouseCanvasX, mouseCanvasY) {
+    for (let i = crops.length - 1; i >= 0; i--) {
+        const crop = crops[i];
+        const cx = (crop.x / imageNaturalSize.width) * canvas.width;
+        const cy = (crop.y / imageNaturalSize.height) * canvas.height;
+        const cw = (crop.width / imageNaturalSize.width) * canvas.width;
+        const ch = (crop.height / imageNaturalSize.height) * canvas.height;
+
+        if (mouseCanvasX >= cx && mouseCanvasX <= cx + cw &&
+            mouseCanvasY >= cy && mouseCanvasY <= cy + ch) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// ============ Canvas事件处理 ============
+function initCanvasEvents() {
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('mouseleave', handleMouseUp);
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleMouseUp);
+    canvas.addEventListener('wheel', (e) => {
+        if (document.getElementById('workspaceSection').style.display !== 'none') {
+            e.preventDefault();
+            if (e.deltaY < 0) zoomIn();
+            else zoomOut();
+        }
+    }, { passive: false });
+}
+
+function getCanvasPosition(e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: (e.clientX - rect.left) * (canvas.width / rect.width),
+        y: (e.clientY - rect.top) * (canvas.height / rect.height)
+    };
+}
+
+// 将画布坐标转换为图片坐标
+function canvasToImage(canvasX, canvasY) {
+    return {
+        x: (canvasX / canvas.width) * imageNaturalSize.width,
+        y: (canvasY / canvas.height) * imageNaturalSize.height
+    };
+}
+
+// 手柄类型对应的光标
+const HANDLE_CURSORS = {
+    'nw': 'nw-resize',
+    'n': 'n-resize',
+    'ne': 'ne-resize',
+    'w': 'w-resize',
+    'e': 'e-resize',
+    'sw': 'sw-resize',
+    's': 's-resize',
+    'se': 'se-resize',
+};
+
+function handleMouseDown(e) {
+    if (!imageObject || crops.length === 0) return;
+
+    const pos = getCanvasPosition(e);
+
+    // 优先检测手柄
+    const handle = detectHandle(pos.x, pos.y);
+    if (handle) {
+        isDragging = true;
+        dragTarget = {
+            cropIndex: handle.cropIndex,
+            handleType: handle.handleType,
+            mode: 'resize',
+            // 保存拖动开始时的裁剪框状态（图片坐标）
+            startCrop: { ...crops[handle.cropIndex] },
+            // 保存拖动开始时的鼠标位置（图片坐标）
+            startMouse: canvasToImage(pos.x, pos.y)
+        };
+        canvas.style.cursor = HANDLE_CURSORS[handle.handleType];
+        e.preventDefault();
+        return;
+    }
+
+    // 检测裁剪框内部
+    const interiorIndex = detectCropInterior(pos.x, pos.y);
+    if (interiorIndex >= 0) {
+        isDragging = true;
+        dragTarget = {
+            cropIndex: interiorIndex,
+            mode: 'move',
+            // 保存拖动开始时的裁剪框位置（图片坐标）
+            startCrop: { ...crops[interiorIndex] },
+            // 保存鼠标与裁剪框左上角的偏移（图片坐标）
+            offsetX: canvasToImage(pos.x, pos.y).x - crops[interiorIndex].x,
+            offsetY: canvasToImage(pos.y, pos.y).y - crops[interiorIndex].y
+        };
+        canvas.style.cursor = 'move';
+        e.preventDefault();
+        return;
+    }
+}
+
+function handleMouseMove(e) {
+    const pos = getCanvasPosition(e);
+
+    // 如果正在拖动，处理移动/缩放
+    if (isDragging && dragTarget) {
+        if (dragTarget.mode === 'move') {
+            handleMove(pos);
+        } else if (dragTarget.mode === 'resize') {
+            handleResize(pos);
+        }
+        return;
+    }
+
+    // 更新光标样式
+    if (!imageObject || crops.length === 0) {
+        canvas.style.cursor = 'default';
+        return;
+    }
+
+    const handle = detectHandle(pos.x, pos.y);
+    if (handle) {
+        canvas.style.cursor = HANDLE_CURSORS[handle.handleType];
+        return;
+    }
+
+    const interiorIndex = detectCropInterior(pos.x, pos.y);
+    if (interiorIndex >= 0) {
+        canvas.style.cursor = 'move';
+        return;
+    }
+
+    canvas.style.cursor = 'default';
+}
+
+/**
+ * ★ 核心修复：处理移动
+ * 直接更新 crops 数组中的坐标数据
+ */
+function handleMove(pos) {
+    const imgPos = canvasToImage(pos.x, pos.y);
+    const crop = crops[dragTarget.cropIndex];
+
+    let newX = imgPos.x - dragTarget.offsetX;
+    let newY = imgPos.y - dragTarget.offsetY;
+
+    if (currentShape === 'rectangle') {
+        // 矩形模式：限制在图片范围内
+        newX = Math.max(0, Math.min(newX, imageNaturalSize.width - crop.width));
+        newY = Math.max(0, Math.min(newY, imageNaturalSize.height - crop.height));
+    } else {
+        // 形状模式：允许超出图片范围
+        newX = Math.max(-imageNaturalSize.width * 0.5,
+                        Math.min(newX, imageNaturalSize.width * 1.5 - crop.width));
+        newY = Math.max(-imageNaturalSize.height * 0.5,
+                        Math.min(newY, imageNaturalSize.height * 1.5 - crop.height));
+    }
+
+    crop.x = newX;
+    crop.y = newY;
+
+    renderCanvas();
+    updateCropList();
+}
+
+/**
+ * ★ 核心修复：处理缩放
+ * 根据手柄类型计算新的裁剪框，直接更新 crops 数组
+ */
+function handleResize(pos) {
+    const imgPos = canvasToImage(pos.x, pos.y);
+    const startCrop = dragTarget.startCrop;
+    const startMouse = dragTarget.startMouse;
+
+    const dx = imgPos.x - startMouse.x;
+    const dy = imgPos.y - startMouse.y;
+
+    let newX = startCrop.x;
+    let newY = startCrop.y;
+    let newW = startCrop.width;
+    let newH = startCrop.height;
+
+    // 根据手柄类型调整
+    switch (dragTarget.handleType) {
+        case 'nw':
+            newX = startCrop.x + dx;
+            newY = startCrop.y + dy;
+            newW = startCrop.width - dx;
+            newH = startCrop.height - dy;
+            break;
+        case 'n':
+            newY = startCrop.y + dy;
+            newH = startCrop.height - dy;
+            break;
+        case 'ne':
+            newY = startCrop.y + dy;
+            newW = startCrop.width + dx;
+            newH = startCrop.height - dy;
+            break;
+        case 'w':
+            newX = startCrop.x + dx;
+            newW = startCrop.width - dx;
+            break;
+        case 'e':
+            newW = startCrop.width + dx;
+            break;
+        case 'sw':
+            newX = startCrop.x + dx;
+            newW = startCrop.width - dx;
+            newH = startCrop.height + dy;
+            break;
+        case 's':
+            newH = startCrop.height + dy;
+            break;
+        case 'se':
+            newW = startCrop.width + dx;
+            newH = startCrop.height + dy;
+            break;
+    }
+
+    // ★ 最小尺寸限制（所有模式通用）
+    if (newW < MIN_CROP_SIZE) {
+        if (dragTarget.handleType.includes('w')) {
+            newX = startCrop.x + startCrop.width - MIN_CROP_SIZE;
+        }
+        newW = MIN_CROP_SIZE;
+    }
+    if (newH < MIN_CROP_SIZE) {
+        if (dragTarget.handleType.includes('n')) {
+            newY = startCrop.y + startCrop.height - MIN_CROP_SIZE;
+        }
+        newH = MIN_CROP_SIZE;
+    }
+
+    // ★ 如果是矩形模式，限制在图片范围内
+    if (currentShape === 'rectangle') {
+        newX = Math.max(0, newX);
+        newY = Math.max(0, newY);
+        if (newX + newW > imageNaturalSize.width) {
+            newW = imageNaturalSize.width - newX;
+        }
+        if (newY + newH > imageNaturalSize.height) {
+            newH = imageNaturalSize.height - newY;
+        }
+    } else {
+        // ★ 形状模式：允许超出图片范围，只限制最小值
+        // 形状裁剪时后端会自动取有效区域
+        newX = Math.max(-imageNaturalSize.width * 0.5, newX);
+        newY = Math.max(-imageNaturalSize.height * 0.5, newY);
+
+        const maxExtend = imageNaturalSize.width * 1.5;
+        const maxExtendH = imageNaturalSize.height * 1.5;
+
+        if (newW > maxExtend) newW = maxExtend;
+        if (newH > maxExtendH) newH = maxExtendH;
+    }
+
+    // ★ 直接更新裁剪区域数据
+    crops[dragTarget.cropIndex] = {
+        x: newX,
+        y: newY,
+        width: newW,
+        height: newH
+    };
+
+    renderCanvas();
+    updateCropList();
+}
+
+function handleMouseUp() {
+    if (isDragging && dragTarget) {
+        // ★ 确保最终状态正确
+        // handleResize 已经在拖动过程中实时更新了 crops 数组
+        // 这里不需要额外操作，数据已经是最新的
+        console.log('拖动结束，当前裁剪区域:',
+            crops.map((c, i) => `[${i}] x:${Math.round(c.x)} y:${Math.round(c.y)} w:${Math.round(c.width)} h:${Math.round(c.height)}`).join('\n')
+        );
+    }
+
+    isDragging = false;
+    dragTarget = null;
+    canvas.style.cursor = 'default';
+    updateCropList();
+}
+
+function handleTouchStart(e) {
+    e.preventDefault();
+    if (e.touches.length === 1) {
+        handleMouseDown(e.touches[0]);
+    }
+}
+
+function handleTouchMove(e) {
+    e.preventDefault();
+    if (e.touches.length === 1 && isDragging) {
+        handleMouseMove(e.touches[0]);
+    }
+}
+
+// ============ 网格控制 ============
+async function applyGrid() {
+    const rows = parseInt(document.getElementById('rowsInput').value) || 3;
+    const cols = parseInt(document.getElementById('colsInput').value) || 3;
+
+    if (rows < 1 || cols < 1) return;
+    if (!imageObject) return;
+
+    gridRows = rows;
+    gridCols = cols;
+
+    const cellWidth = imageNaturalSize.width / cols;
+    const cellHeight = imageNaturalSize.height / rows;
+
+    crops = [];
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            crops.push({
+                x: col * cellWidth,
+                y: row * cellHeight,
+                width: cellWidth,
+                height: cellHeight
+            });
+        }
+    }
+
+    document.getElementById('gridSize').textContent = `${rows} × ${cols}`;
+    document.getElementById('cellSize').textContent =
+        `${Math.round(cellWidth)} × ${Math.round(cellHeight)} px`;
+
+    renderCanvas();
+    updateCropList();
+}
+
+function setGridPreset(rows, cols) {
+    document.getElementById('rowsInput').value = rows;
+    document.getElementById('colsInput').value = cols;
+    applyGrid();
+}
+
+// ============ 裁剪列表更新 ============
+function updateCropList() {
+    const cropItems = document.getElementById('cropItems');
+    cropItems.innerHTML = '';
+
+    crops.forEach((crop, index) => {
+        const item = document.createElement('div');
+        item.className = 'crop-item';
+        // 显示裁剪框的坐标和尺寸（用于调试验证）
+        item.innerHTML = `
+            <div class="crop-item-header">
+                <span class="crop-item-number">#${index + 1}</span>
+                <div class="crop-item-actions">
+                    <button onclick="resetCropPosition(${index})" title="重置位置">↺</button>
+                </div>
+            </div>
+            <div class="crop-item-info">
+                <span>尺寸: ${Math.round(crop.width)}×${Math.round(crop.height)}</span>
+                <span>位置: (${Math.round(crop.x)}, ${Math.round(crop.y)})</span>
+            </div>
+        `;
+        cropItems.appendChild(item);
+    });
+}
+
+function resetCropPosition(index) {
+    const cellWidth = imageNaturalSize.width / gridCols;
+    const cellHeight = imageNaturalSize.height / gridRows;
+    const row = Math.floor(index / gridCols);
+    const col = index % gridCols;
+
+    crops[index].x = col * cellWidth;
+    crops[index].y = row * cellHeight;
+    crops[index].width = cellWidth;
+    crops[index].height = cellHeight;
+
+    renderCanvas();
+    updateCropList();
+}
+
+// ============ 缩放控制 ============
+function zoomIn() {
+    zoom = Math.min(zoom * 1.2, 5);
+    renderCanvas();
+}
+
+function zoomOut() {
+    zoom = Math.max(zoom / 1.2, 0.1);
+    renderCanvas();
+}
+
+function resetZoom() {
+    zoom = 1;
+    renderCanvas();
+}
+
+// ============ 执行裁剪 ============
+async function executeCrop() {
+    if (!currentFile || crops.length === 0) {
+        alert('请先上传图片并设置裁剪区域');
+        return;
+    }
+
+    showLoading(true);
+
+    // 构建裁剪数据
+    let cropData = {
+        crops: crops,
+        rows: gridRows,
+        cols: gridCols
+    };
+
+    // 如果是形状裁剪模式
+    if (currentShape !== 'rectangle') {
+        cropData = {
+            mode: 'shape',
+            shapes: crops.map(crop => ({
+                type: currentShape === 'polygon' ? polygonType : currentShape,
+                x: crop.x,
+                y: crop.y,
+                width: crop.width,
+                height: crop.height,
+                points: currentShape === 'star' || currentShape === 'polygon' ? starPoints : undefined
+            }))
+        };
+    }
+
+    try {
+        const response = await fetch('/crop', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                filename: currentFile,
+                strategy_id: 'custom',
+                crop_data: cropData
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            cropResults = [...result.files];
+            displayResults(result.files);
+            document.getElementById('downloadBtn').disabled = false;
+        } else {
+            alert('裁剪失败: ' + result.error);
+        }
+    } catch (error) {
+        alert('裁剪出错: ' + error.message);
+    } finally {
+        showLoading(false);
+    }
+}
+
+function displayResults(files) {
+    const resultImages = document.getElementById('resultImages');
+    // ★ 清空容器
+    resultImages.innerHTML = '';
+
+    // ★ 更新全局预览图片数组
+    previewImages = files.map(file => ({
+        name: file,
+        url: `/uploads/${file}?_=${Date.now()}` // ★ 添加时间戳参数防止浏览器缓存
+    }));
+
+    // ★ 重置预览索引
+    currentPreviewIndex = 0;
+
+    files.forEach((file, index) => {
+        const imgContainer = document.createElement('div');
+        imgContainer.className = 'result-item';
+
+        const img = document.createElement('img');
+        // ★ 添加时间戳参数防止缓存
+        img.src = `/uploads/${file}?_=${Date.now() + index}`;
+        img.alt = file;
+        img.loading = 'lazy';
+        img.style.cursor = 'zoom-in';
+        img.title = '点击放大查看';
+
+        // ★ 使用闭包确保正确的索引
+        img.addEventListener('click', ((idx) => {
+            return (e) => {
+                e.stopPropagation();
+                openImagePreview(idx);
+            };
+        })(index));
+
+        const label = document.createElement('p');
+        label.textContent = file;
+        label.style.cursor = 'pointer';
+
+        // ★ 使用闭包确保正确的索引
+        label.addEventListener('click', ((idx) => {
+            return (e) => {
+                e.stopPropagation();
+                openImagePreview(idx);
+            };
+        })(index));
+
+        // 添加下载按钮
+        const downloadLink = document.createElement('a');
+        downloadLink.href = `/uploads/${file}?_=${Date.now() + index}`;
+        downloadLink.download = file;
+        downloadLink.textContent = '💾 下载';
+        downloadLink.className = 'result-action-btn';
+        downloadLink.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        imgContainer.appendChild(img);
+        imgContainer.appendChild(label);
+        imgContainer.appendChild(downloadLink);
+        resultImages.appendChild(imgContainer);
+    });
+
+    // ★ 确保切换到结果页面
+    document.getElementById('workspaceSection').style.display = 'none';
+    document.getElementById('resultSection').style.display = 'block';
+}
+
+// ============ 图片预览功能（缩放/平移） ============
+function initModalEvents() {
+    const modalImageContainer = document.getElementById('modalImageContainer');
+
+    document.querySelector('.modal-overlay').addEventListener('click', closeImagePreview);
+
+    document.getElementById('modalImage').addEventListener('load', () => {
+        updateModalImageSize();
+        resetImageTransform();
+    });
+
+    modalImageContainer.addEventListener('click', (e) => e.stopPropagation());
+    modalImageContainer.addEventListener('wheel', handleImageWheel, { passive: false });
+    modalImageContainer.addEventListener('mousedown', handleImagePanStart);
+    modalImageContainer.addEventListener('mousemove', handleImagePanMove);
+    modalImageContainer.addEventListener('mouseup', handleImagePanEnd);
+    modalImageContainer.addEventListener('mouseleave', handleImagePanEnd);
+    modalImageContainer.addEventListener('dblclick', resetImageTransform);
+
+    // 移动端触摸
+    modalImageContainer.addEventListener('touchstart', handleImageTouchStart, { passive: false });
+    modalImageContainer.addEventListener('touchmove', handleImageTouchMove, { passive: false });
+    modalImageContainer.addEventListener('touchend', handleImageTouchEnd);
+}
+
+function handleImageWheel(e) {
+    e.preventDefault();
+    const modalImage = document.getElementById('modalImage');
+    if (!modalImage || !modalImage.src) return;
+
+    const rect = modalImage.parentElement.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const zoomSpeed = 0.1;
+    const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+    const newZoom = Math.max(0.5, Math.min(imageZoomLevel + delta, 5));
+
+    if (newZoom !== imageZoomLevel) {
+        const scale = newZoom / imageZoomLevel;
+        imageTranslateX = mouseX - scale * (mouseX - imageTranslateX);
+        imageTranslateY = mouseY - scale * (mouseY - imageTranslateY);
+        imageZoomLevel = newZoom;
+        updateImageTransform();
+        showZoomIndicator();
+    }
+}
+
+function handleImagePanStart(e) {
+    // ★ 修复：移除 imageZoomLevel <= 1 的限制，任何缩放级别都可以平移
+    e.preventDefault();
+    isPanning = true;
+    panStart = {
+        x: e.clientX - imageTranslateX,
+        y: e.clientY - imageTranslateY
+    };
+    document.getElementById('modalImageContainer').style.cursor = 'grabbing';
+}
+
+function handleImagePanMove(e) {
+    if (!isPanning) return;
+    imageTranslateX = e.clientX - panStart.x;
+    imageTranslateY = e.clientY - panStart.y;
+    updateImageTransform();
+}
+
+function handleImagePanEnd() {
+    isPanning = false;
+    const container = document.getElementById('modalImageContainer');
+    if (container) container.style.cursor = imageZoomLevel > 1 ? 'grab' : 'default';
+}
+
+let touchStartDistance = 0;
+let touchStartZoom = 1;
+
+function handleImageTouchStart(e) {
+    if (e.touches.length === 2) {
+        e.preventDefault();
+        touchStartDistance = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+        touchStartZoom = imageZoomLevel;
+    } else if (e.touches.length === 1 && imageZoomLevel > 1) {
+        isPanning = true;
+        panStart = { x: e.touches[0].clientX - imageTranslateX, y: e.touches[0].clientY - imageTranslateY };
+    }
+}
+
+function handleImageTouchMove(e) {
+    if (e.touches.length === 2) {
+        e.preventDefault();
+        const dist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+        imageZoomLevel = Math.max(0.5, Math.min(touchStartZoom * (dist / touchStartDistance), 5));
+        updateImageTransform();
+    } else if (e.touches.length === 1 && isPanning) {
+        imageTranslateX = e.touches[0].clientX - panStart.x;
+        imageTranslateY = e.touches[0].clientY - panStart.y;
+        updateImageTransform();
+    }
+}
+
+function handleImageTouchEnd() {
+    isPanning = false;
+}
+
+function updateImageTransform() {
+    const modalImage = document.getElementById('modalImage');
+    if (!modalImage) return;
+    modalImage.style.transform = `translate(${imageTranslateX}px, ${imageTranslateY}px) scale(${imageZoomLevel})`;
+    modalImage.style.transition = isPanning ? 'none' : 'transform 0.3s ease';
+}
+
+function resetImageTransform(e) {
+    if (e) e.preventDefault();
+    imageZoomLevel = 1;
+    imageTranslateX = 0;
+    imageTranslateY = 0;
+    updateImageTransform();
+    const container = document.getElementById('modalImageContainer');
+    if (container) container.style.cursor = 'default';
+}
+
+let zoomIndicatorTimeout = null;
+
+function showZoomIndicator() {
+    let indicator = document.querySelector('.modal-zoom-indicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.className = 'modal-zoom-indicator';
+        document.querySelector('.modal-content').appendChild(indicator);
+    }
+    indicator.textContent = `🔍 ${Math.round(imageZoomLevel * 100)}%`;
+    indicator.classList.add('show');
+    clearTimeout(zoomIndicatorTimeout);
+    zoomIndicatorTimeout = setTimeout(() => indicator.classList.remove('show'), 1000);
+}
+
+// ============ 图片预览导航 ============
+function initKeyboardNavigation() {
+    document.addEventListener('keydown', (e) => {
+        const modal = document.getElementById('imageModal');
+        if (modal.style.display === 'flex') {
+            switch(e.key) {
+                case 'Escape': closeImagePreview(); break;
+                case 'ArrowLeft': navigateImage(-1); break;
+                case 'ArrowRight': navigateImage(1); break;
+                case '+': case '=':
+                    e.preventDefault();
+                    imageZoomLevel = Math.min(imageZoomLevel + 0.2, 5);
+                    updateImageTransform();
+                    break;
+                case '-':
+                    e.preventDefault();
+                    imageZoomLevel = Math.max(imageZoomLevel - 0.2, 0.5);
+                    updateImageTransform();
+                    break;
+                case '0':
+                    e.preventDefault();
+                    resetImageTransform();
+                    break;
+            }
+        }
+    });
+}
+
+function openImagePreview(index) {
+    if (previewImages.length === 0) return;
+    currentPreviewIndex = index;
+    updatePreviewImage();
+    const modal = document.getElementById('imageModal');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    updateThumbnails();
+    setTimeout(() => modal.classList.add('modal-active'), 10);
+}
+
+function closeImagePreview() {
+    const modal = document.getElementById('imageModal');
+    modal.classList.remove('modal-active');
+    resetImageTransform();
+    if (isFullscreen) {
+        if (document.exitFullscreen) document.exitFullscreen();
+    }
+    setTimeout(() => {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }, 300);
+}
+
+function updatePreviewImage() {
+    const image = previewImages[currentPreviewIndex];
+    const modalImage = document.getElementById('modalImage');
+    resetImageTransform();
+    modalImage.style.opacity = '0';
+    setTimeout(() => {
+        modalImage.src = image.url;
+        document.getElementById('modalImageName').textContent = image.name;
+        document.getElementById('modalImageCounter').textContent = `${currentPreviewIndex + 1} / ${previewImages.length}`;
+        modalImage.onload = () => {
+            modalImage.style.opacity = '1';
+            updateModalImageSize();
+        };
+    }, 150);
+    updateNavButtons();
+    updateThumbnails();
+}
+
+function updateModalImageSize() {
+    const img = document.getElementById('modalImage');
+    if (img.naturalWidth && img.naturalHeight) {
+        document.getElementById('modalImageSize').textContent = `${img.naturalWidth} × ${img.naturalHeight} px`;
+    }
+}
+
+function navigateImage(direction) {
+    let newIndex = currentPreviewIndex + direction;
+    if (newIndex < 0) newIndex = previewImages.length - 1;
+    else if (newIndex >= previewImages.length) newIndex = 0;
+    if (newIndex !== currentPreviewIndex) {
+        currentPreviewIndex = newIndex;
+        updatePreviewImage();
+    }
+}
+
+function updateNavButtons() {
+    const prev = document.getElementById('modalPrev');
+    const next = document.getElementById('modalNext');
+    if (previewImages.length <= 1) {
+        prev.style.display = 'none';
+        next.style.display = 'none';
+    } else {
+        prev.style.display = 'flex';
+        next.style.display = 'flex';
+    }
+}
+
+function updateThumbnails() {
+    const container = document.getElementById('modalThumbnails');
+    container.innerHTML = '';
+    if (previewImages.length <= 1) {
+        container.style.display = 'none';
+        return;
+    }
+    container.style.display = 'flex';
+    previewImages.forEach((image, index) => {
+        const thumb = document.createElement('div');
+        thumb.className = 'modal-thumbnail' + (index === currentPreviewIndex ? ' active' : '');
+        const img = document.createElement('img');
+        img.src = image.url;
+        thumb.appendChild(img);
+        thumb.addEventListener('click', () => {
+            if (index !== currentPreviewIndex) {
+                currentPreviewIndex = index;
+                updatePreviewImage();
+            }
+        });
+        container.appendChild(thumb);
+    });
+}
+
+function downloadCurrentImage() {
+    if (previewImages[currentPreviewIndex]) {
+        const link = document.createElement('a');
+        link.href = previewImages[currentPreviewIndex].url;
+        link.download = previewImages[currentPreviewIndex].name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+function toggleFullscreen() {
+    const modalContent = document.querySelector('.modal-content');
+    if (!isFullscreen) {
+        if (modalContent.requestFullscreen) modalContent.requestFullscreen();
+        isFullscreen = true;
+    } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+        isFullscreen = false;
+    }
+}
+
+// 触摸滑动切换
+let touchStartX = 0;
+document.getElementById('modalImageContainer').addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+});
+document.getElementById('modalImageContainer').addEventListener('touchend', (e) => {
+    const diff = touchStartX - e.changedTouches[0].screenX;
+    if (Math.abs(diff) > 50) {
+        navigateImage(diff > 0 ? 1 : -1);
+    }
+});
+
+// ============ 通用操作 ============
+function downloadResults() {
+    if (currentFile && cropResults.length > 0) {
+        window.location.href = `/download/${currentFile}`;
+    }
+}
+
+function backToWorkspace() {
+    // ★ 切换显示
+    document.getElementById('resultSection').style.display = 'none';
+    document.getElementById('workspaceSection').style.display = 'block';
+
+    // ★ 重新渲染画布，确保裁剪框显示正确
+    if (imageObject) {
+        renderCanvas();
+        updateCropList();
+    }
+}
+
+function resetAll() {
+    currentFile = null;
+    imageObject = null;
+    crops = [];
+    cropResults = [];
+    previewImages = [];
+    currentPreviewIndex = 0;
+    zoom = 1;
+    gridRows = 3;
+    gridCols = 3;
+
+    document.getElementById('uploadSection').style.display = 'block';
+    document.getElementById('workspaceSection').style.display = 'none';
+    document.getElementById('resultSection').style.display = 'none';
+    document.getElementById('downloadBtn').disabled = true;
+    document.getElementById('imageInput').value = '';
+    document.getElementById('rowsInput').value = 3;
+    document.getElementById('colsInput').value = 3;
+    closeImagePreview();
+}
+
+function showLoading(show) {
+    document.getElementById('loading').style.display = show ? 'flex' : 'none';
+}
+
+window.addEventListener('resize', () => {
+    if (imageObject && document.getElementById('workspaceSection').style.display !== 'none') {
+        renderCanvas();
+    }
+});
+// ============ 图片库功能 ============
+let galleryImages = [];
+
+async function openGallery() {
+    const modal = document.getElementById('galleryModal');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    // 添加动画
+    setTimeout(() => {
+        modal.classList.add('gallery-active');
+    }, 10);
+
+    // 加载图片
+    await loadGalleryImages();
+}
+
+function closeGallery() {
+    const modal = document.getElementById('galleryModal');
+    modal.classList.remove('gallery-active');
+
+    setTimeout(() => {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }, 300);
+}
+
+async function loadGalleryImages() {
+    const grid = document.getElementById('galleryGrid');
+    grid.innerHTML = `
+        <div class="gallery-loading">
+            <div class="spinner"></div>
+            <p>加载中...</p>
+        </div>
+    `;
+
+    try {
+        const response = await fetch('/get_all_images');
+        const result = await response.json();
+
+        if (result.success) {
+            galleryImages = result.images;
+            document.getElementById('galleryCount').textContent = `共 ${result.total} 张图片`;
+            document.getElementById('imageCount').textContent = `(${result.total})`;
+            renderGallery(galleryImages);
+        } else {
+            grid.innerHTML = '<p class="gallery-empty">加载失败</p>';
+        }
+    } catch (error) {
+        grid.innerHTML = '<p class="gallery-empty">加载出错: ' + error.message + '</p>';
+    }
+}
+
+function renderGallery(images) {
+    const grid = document.getElementById('galleryGrid');
+
+    if (images.length === 0) {
+        grid.innerHTML = `
+            <div class="gallery-empty">
+                <p>📭 图片库为空</p>
+                <p>上传裁剪图片后，这里会显示所有图片</p>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = '';
+
+    images.forEach((image) => {
+        const card = document.createElement('div');
+        card.className = 'gallery-card';
+        card.setAttribute('data-filename', image.filename);
+
+        // 格式化文件大小
+        const sizeStr = formatFileSize(image.size);
+
+        card.innerHTML = `
+            <div class="gallery-card-image">
+                <img src="${image.url}?_=${Date.now()}"
+                     alt="${image.filename}"
+                     loading="lazy"
+                     onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><rect fill=%22%23f0f0f0%22 width=%22200%22 height=%22200%22/><text x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22 font-size=%2214%22>加载失败</text></svg>'">
+            </div>
+            <div class="gallery-card-info">
+                <p class="gallery-card-name" title="${image.filename}">${image.filename}</p>
+                <p class="gallery-card-meta">${sizeStr} · ${image.modified}</p>
+            </div>
+            <div class="gallery-card-actions">
+                <button onclick="previewGalleryImage('${image.filename}', '${image.url}')" title="查看大图">
+                    🔍
+                </button>
+                <a href="${image.url}" download="${image.filename}" title="下载" onclick="event.stopPropagation()">
+                    💾
+                </a>
+                <button onclick="deleteGalleryImage('${image.filename}')" title="删除">
+                    🗑️
+                </button>
+            </div>
+        `;
+
+        // 点击卡片查看大图
+        card.querySelector('.gallery-card-image').addEventListener('click', () => {
+            previewGalleryImage(image.filename, image.url);
+        });
+
+        grid.appendChild(card);
+    });
+}
+
+function previewGalleryImage(filename, url) {
+    // 使用现有的图片预览模态框
+    previewImages = [{
+        name: filename,
+        url: url
+    }];
+    currentPreviewIndex = 0;
+    updatePreviewImage();
+    updateNavButtons();
+    updateThumbnails();
+
+    const modal = document.getElementById('imageModal');
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    setTimeout(() => {
+        modal.classList.add('modal-active');
+    }, 10);
+
+    // 关闭图片库
+    closeGallery();
+}
+
+function filterGalleryImages() {
+    const searchTerm = document.getElementById('gallerySearch').value.toLowerCase();
+
+    if (!searchTerm) {
+        renderGallery(galleryImages);
+        return;
+    }
+
+    const filtered = galleryImages.filter(img =>
+        img.filename.toLowerCase().includes(searchTerm)
+    );
+    renderGallery(filtered);
+}
+
+function sortGalleryImages() {
+    const sortBy = document.getElementById('gallerySort').value;
+    let sorted = [...galleryImages];
+
+    switch(sortBy) {
+        case 'newest':
+            sorted.sort((a, b) => new Date(b.modified) - new Date(a.modified));
+            break;
+        case 'oldest':
+            sorted.sort((a, b) => new Date(a.modified) - new Date(b.modified));
+            break;
+        case 'name':
+            sorted.sort((a, b) => a.filename.localeCompare(b.filename));
+            break;
+        case 'size':
+            sorted.sort((a, b) => b.size - a.size);
+            break;
+    }
+
+    renderGallery(sorted);
+}
+
+async function deleteGalleryImage(filename) {
+    if (!confirm(`确定要删除 "${filename}" 吗？此操作不可恢复！`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/delete_image/${filename}`, {
+            method: 'DELETE'
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            // 从列表中移除
+            galleryImages = galleryImages.filter(img => img.filename !== filename);
+            document.getElementById('galleryCount').textContent = `共 ${galleryImages.length} 张图片`;
+            document.getElementById('imageCount').textContent = `(${galleryImages.length})`;
+
+            // 重新搜索/排序
+            if (document.getElementById('gallerySearch').value) {
+                filterGalleryImages();
+            } else {
+                sortGalleryImages();
+            }
+        } else {
+            alert('删除失败: ' + result.error);
+        }
+    } catch (error) {
+        alert('删除出错: ' + error.message);
+    }
+}
+
+async function refreshGallery() {
+    await loadGalleryImages();
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// 页面加载时获取图片数量
+document.addEventListener('DOMContentLoaded', () => {
+    // ... 原有代码 ...
+
+    // 获取图片库数量（不影响主流程）
+    fetch('/get_all_images')
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('imageCount').textContent = `(${data.total})`;
+            }
+        })
+        .catch(() => {});
+    // 初始化形状选择器
+    const defaultShapeBtn = document.querySelector('.shape-btn[data-shape="rectangle"]');
+    if (defaultShapeBtn) {
+        defaultShapeBtn.classList.add('active');
+    }
+});
+// ============ 形状裁剪状态 ============
+let currentShape = 'rectangle'; // 当前形状类型
+let starPoints = 5; // 星形/多边形角数
+let polygonType = 'star'; // 多边形类型：star 或 polygon
+
+// ============ 形状选择 ============
+function selectShape(shape) {
+    currentShape = shape;
+
+    // 更新按钮状态
+    document.querySelectorAll('.shape-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.shape === shape) {
+            btn.classList.add('active');
+        }
+    });
+
+    // 显示/隐藏多角形控制
+    const polygonControls = document.getElementById('polygonControls');
+    if (shape === 'star' || shape === 'polygon') {
+        polygonControls.style.display = 'block';
+        document.getElementById('polygonLabel').textContent =
+            shape === 'star' ? '星形角数:' : '多边形边数:';
+    } else {
+        polygonControls.style.display = 'none';
+    }
+
+    // 更新网格设置
+    if (shape === 'rectangle') {
+        document.getElementById('rowsInput').value = gridRows;
+        document.getElementById('colsInput').value = gridCols;
+    } else {
+        // 形状模式使用单格
+        gridRows = 1;
+        gridCols = 1;
+        document.getElementById('rowsInput').value = 1;
+        document.getElementById('colsInput').value = 1;
+    }
+
+    applyShapeGrid();
+}
+
+function updateStarPoints() {
+    starPoints = parseInt(document.getElementById('starPoints').value) || 5;
+    starPoints = Math.max(3, Math.min(20, starPoints));
+    document.getElementById('starPoints').value = starPoints;
+    applyShapeGrid();
+}
+
+function updatePolygonType() {
+    const selected = document.querySelector('input[name="polygonType"]:checked');
+    polygonType = selected ? selected.value : 'star';
+    currentShape = polygonType;
+    applyShapeGrid();
+}
+
+function applyShapeGrid() {
+    if (!imageObject) return;
+
+    gridRows = 1;
+    gridCols = 1;
+
+    // 创建单个裁剪区域覆盖整个图片
+    crops = [{
+        x: 0,
+        y: 0,
+        width: imageNaturalSize.width,
+        height: imageNaturalSize.height
+    }];
+
+    document.getElementById('gridSize').textContent = '1 × 1';
+    document.getElementById('cellSize').textContent =
+        `${imageNaturalSize.width} × ${imageNaturalSize.height} px`;
+
+    renderCanvas();
+    updateCropList();
+}
+    </script>
+</body>
+</html>
